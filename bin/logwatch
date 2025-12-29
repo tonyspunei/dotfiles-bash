@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#
+# logwatch - Multi-file log tailer with filtering
+# Usage: logwatch [PATTERN] FILE1 [FILE2...]
+
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+    echo "Usage: logwatch [PATTERN] FILE..."
+    echo
+    echo "Examples:"
+    echo "  logwatch /var/log/syslog"
+    echo "  logwatch ERROR /var/log/app/*.log"
+    echo "  logwatch '50[0-9]' /var/log/nginx/access.log"
+    exit 1
+fi
+
+PATTERN=""
+FILES=()
+
+# Parse args
+for arg in "$@"; do
+    if [[ -f "$arg" || "$arg" == *"*"* ]]; then
+        FILES+=("$arg")
+    else
+        if [[ -z "$PATTERN" ]]; then
+            PATTERN="$arg"
+        else
+            FILES+=("$arg")
+        fi
+    fi
+done
+
+# Build tail command
+if [[ ${#FILES[@]} -eq 0 ]]; then
+    echo "Error: No files specified"
+    exit 1
+fi
+
+echo "📋 Watching logs..."
+if [[ -n "$PATTERN" ]]; then
+    echo "🔍 Filter: $PATTERN"
+fi
+echo "Files: ${FILES[*]}"
+echo "---"
+echo
+
+# Tail and optionally filter
+if [[ -n "$PATTERN" ]]; then
+    tail -f "${FILES[@]}" 2>/dev/null | grep --line-buffered -E "$PATTERN"
+else
+    tail -f "${FILES[@]}" 2>/dev/null
+fi
+

@@ -1,0 +1,40 @@
+#!/bin/bash
+set -euo pipefail
+
+# Show current network interfaces and external IP
+
+green='\033[0;32m'
+yellow='\033[0;33m'
+red='\033[0;31m'
+reset='\033[0m'
+
+# Active interfaces
+found_interface=false
+while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    found_interface=true
+    
+    interface=$(echo "$line" | awk '{print $1}')
+    ip=$(echo "$line" | awk '{print $2}')
+    
+    case "$interface" in
+        e*)   label="Ethernet" ;;
+        wl*)  label="Wireless" ;;
+        tun*|wg*) label="VPN" ;;
+        *)    label="$interface" ;;
+    esac
+    
+    echo -e "${green}${label}:${reset} $ip"
+done < <(ip -4 -o addr show scope global 2>/dev/null | awk '{print $2, $4}' | cut -d/ -f1)
+
+if [[ "$found_interface" == false ]]; then
+    echo -e "${red}No active interfaces${reset}"
+fi
+
+# External IP
+external_ip=$(curl -s --max-time 3 ifconfig.me 2>/dev/null) \
+    || external_ip=$(curl -s --max-time 3 icanhazip.com 2>/dev/null) \
+    || external_ip="${red}unavailable${reset}"
+
+echo -e "${yellow}External:${reset} $external_ip"
+
